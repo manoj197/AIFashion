@@ -1,0 +1,166 @@
+{
+  "meta": {
+    "version": "1.0",
+    "last_updated": "2025-12-01",
+    "curator": "CDO Agent",
+    "methodology": "Based on seasonal color analysis (warm/cool/neutral undertones) combined with contrast level theory"
+  },
+  "skin_tones": {
+    "fair": {
+      "label": "Fair",
+      "hex_range": ["#F5D6C3", "#F2E0D0", "#EDD5C8"],
+      "undertone": "cool",
+      "contrast_level": "low-to-medium",
+      "best_colors": {
+        "primary": [
+          { "name": "Navy", "hex": "#1B2A4A", "reason": "Creates elegant contrast without being harsh" },
+          { "name": "Emerald", "hex": "#2D6A4F", "reason": "Complements cool undertones beautifully" },
+          { "name": "Burgundy", "hex": "#6B2D3E", "reason": "Adds warmth while respecting cool undertone" },
+          { "name": "Soft Pink", "hex": "#E8B4B8", "reason": "Harmonizes with natural skin warmth" },
+          { "name": "Lavender", "hex": "#9B8EC0", "reason": "Cool-toned complement that brightens complexion" },
+          { "name": "Charcoal", "hex": "#3D3D3D", "reason": "Softer than black, flattering contrast" }
+        ],
+        "accent": [
+          { "name": "Icy Blue", "hex": "#A8D8EA", "reason": "Freshens complexion" },
+          { "name": "Silver", "hex": "#C0C0C0", "reason": "Cool metallic that complements undertone" },
+          { "name": "Dusty Mauve", "hex": "#C9A0A0", "reason": "Subtle and sophisticated" }
+        ],
+        "avoid": [
+          { "name": "Orange", "hex": "#E67E22", "reason": "Clashes with cool undertones, can look sallow" },
+          { "name": "Mustard", "hex": "#D4A017", "reason": "Too warm, washes out fair cool skin" },
+          { "name": "Beige", "hex": "#D2B48C", "reason": "Can make skin look flat and blended" }
+        ]
+      }
+    },
+    "light": {
+      "label": "Light",
+      "hex_range": ["#E8C4A8", "#E5C9B3", "#DFC0A5"],
+      "undertone": "neutral",
+      "contrast_level": "medium",
+      "best_colors": {
+        "primary": [
+          { "name": "Dusty Rose", "hex": "#C9A0A0", "reason": "Perfect neutral complement" },
+          { "name": "Sage Green", "hex": "#87A878", "reason": "Earthy and flattering for neutral undertones" },
+          { "name": "Camel", "hex": "#C19A6B", "reason": "Tonal dressing that looks intentional" },
+          { "name": "Cobalt Blue", "hex": "#0047AB", "reason": "Vibrant enough to add life without clashing" },
+          { "name": "Plum", "hex": "#6B3A6B", "reason": "Rich depth that flatters neutral skin" },
+          { "name": "Terracotta", "hex": "#C4704E", "reason": "Warm earth tone that creates glow" }
+        ],
+        "accent": [
+          { "name": "Ivory", "hex": "#FFFFF0", "reason": "Cleaner than pure white, more flattering" },
+          { "name": "Rose Gold", "hex": "#B76E79", "reason": "Metallic that bridges warm and cool" },
+          { "name": "Teal", "hex": "#2A7B7B", "reason": "Versatile depth that works with neutral undertones" }
+        ],
+        "avoid": [
+          { "name": "Neon Yellow", "hex": "#F0E130", "reason": "Overwhelms delicate neutral coloring" },
+          { "name": "Pure White", "hex": "#FFFFFF", "reason": "Can look stark against light neutral skin" },
+          { "name": "Hot Pink", "hex": "#FF69B4", "reason": "Can appear garish against neutral tones" }
+        ]
+      }
+    },
+    "medium": {
+      "label": "Medium",
+      "hex_range": ["#C8956C", "#C4986E", "#BF9065"],
+      "undertone": "warm",
+      "contrast_level": "medium",
+      "best_colors": {
+        "primary": [
+          { "name": "Olive Green", "hex": "#556B2F", "reason": "Warm green that makes golden undertones sing" },
+          { "name": "Burnt Orange", "hex": "#CC5500", "reason": "Enhances warm undertones naturally" },
+          { "name": "Gold", "hex": "#D4A017", "reason": "Mirrors natural warmth in skin" },
+          { "name": "Rich Teal", "hex": "#0A6B6B", "reason": "Contrast that complements warm tones" },
+          { "name": "Warm Red", "hex": "#C0392B", "reason": "Vibrant but grounded by warm undertone" },
+          { "name": "Chocolate", "hex": "#4A2C2A", "reason": "Rich depth that harmonizes perfectly" }
+        ],
+        "accent": [
+          { "name": "Mustard", "hex": "#D4A017", "reason": "Extends the warm palette naturally" },
+          { "name": "Copper", "hex": "#B87333", "reason": "Warm metallic that glows on medium skin" },
+          { "name": "Warm White", "hex": "#FAF0E6", "reason": "Softer than pure white, more harmonious" }
+        ],
+        "avoid": [
+          { "name": "Pastel Pink", "hex": "#FFD1DC", "reason": "Too cool and washed out for warm undertones" },
+          { "name": "Icy Blue", "hex": "#A8D8EA", "reason": "Cool tone fights with warm undertone" },
+          { "name": "Silver", "hex": "#C0C0C0", "reason": "Cool metallic dulls warm complexion" }
+        ]
+      }
+    },
+    "olive": {
+      "label": "Olive",
+      "hex_range": ["#A67C52", "#A08050", "#9B7C4E"],
+      "undertone": "warm",
+      "contrast_level": "medium-to-high",
+      "best_colors": {
+        "primary": [
+          { "name": "Rust", "hex": "#B7410E", "reason": "Earth tone that brings out olive glow" },
+          { "name": "Forest Green", "hex": "#228B22", "reason": "Enhances the natural green in olive skin" },
+          { "name": "Deep Purple", "hex": "#4A0E4E", "reason": "Rich contrast that flatters warm-green undertones" },
+          { "name": "Warm Coral", "hex": "#E76F51", "reason": "Adds brightness without clashing" },
+          { "name": "Bronze", "hex": "#CD7F32", "reason": "Metallic warmth that mirrors skin's golden-green" },
+          { "name": "Amber", "hex": "#FFBF00", "reason": "Warm and luminous complement" }
+        ],
+        "accent": [
+          { "name": "Off-White", "hex": "#FAF0E6", "reason": "Cleaner look than pure white on olive skin" },
+          { "name": "Warm Gold", "hex": "#FFD700", "reason": "Picks up golden tones in skin" },
+          { "name": "Burnt Sienna", "hex": "#E97451", "reason": "Natural earth companion to olive" }
+        ],
+        "avoid": [
+          { "name": "Pale Yellow", "hex": "#FFFACD", "reason": "Can emphasize sallow/green tones" },
+          { "name": "Lilac", "hex": "#C8A2C8", "reason": "Cool pastel clashes with warm-green base" },
+          { "name": "Baby Blue", "hex": "#89CFF0", "reason": "Cool and desaturating on olive skin" }
+        ]
+      }
+    },
+    "tan": {
+      "label": "Tan",
+      "hex_range": ["#8D6E4C", "#8B7150", "#876B48"],
+      "undertone": "warm",
+      "contrast_level": "high",
+      "best_colors": {
+        "primary": [
+          { "name": "Bright Coral", "hex": "#FF6F61", "reason": "Pops beautifully against tan skin" },
+          { "name": "Turquoise", "hex": "#40E0D0", "reason": "Electric contrast that photographs amazingly" },
+          { "name": "Saffron", "hex": "#F4C430", "reason": "Warm and regal — looks intentionally luxe" },
+          { "name": "Hot Pink", "hex": "#FF69B4", "reason": "Bold enough to create stunning contrast" },
+          { "name": "Electric Blue", "hex": "#007BFF", "reason": "Vibrant cool tone that creates energy" },
+          { "name": "Lime Green", "hex": "#32CD32", "reason": "Fresh and modern against warm skin" }
+        ],
+        "accent": [
+          { "name": "Cream", "hex": "#FFFDD0", "reason": "Elegant light neutral that glows on tan skin" },
+          { "name": "Gold", "hex": "#FFD700", "reason": "Classic warm metallic, always stunning" },
+          { "name": "Tangerine", "hex": "#FF9966", "reason": "Warm and playful accent" }
+        ],
+        "avoid": [
+          { "name": "Khaki", "hex": "#BDB76B", "reason": "Too close to skin tone, looks muddy" },
+          { "name": "Olive Drab", "hex": "#6B8E23", "reason": "Muted and too close in value" },
+          { "name": "Maroon", "hex": "#800000", "reason": "Can look overly dark and heavy" }
+        ]
+      }
+    },
+    "deep": {
+      "label": "Deep",
+      "hex_range": ["#5C3A1E", "#4E3524", "#6B4226"],
+      "undertone": "cool",
+      "contrast_level": "high",
+      "best_colors": {
+        "primary": [
+          { "name": "Bright White", "hex": "#FFFFFF", "reason": "Maximum contrast — clean and striking" },
+          { "name": "Cobalt", "hex": "#0047AB", "reason": "Rich jewel tone that commands attention" },
+          { "name": "Fuchsia", "hex": "#FF00FF", "reason": "Bold and beautiful against deep skin" },
+          { "name": "Emerald", "hex": "#50C878", "reason": "Jewel green that creates regal energy" },
+          { "name": "Bright Yellow", "hex": "#FFD700", "reason": "Showstopping contrast that glows" },
+          { "name": "Royal Purple", "hex": "#7851A9", "reason": "Cool-toned depth that elevates everything" }
+        ],
+        "accent": [
+          { "name": "Tangerine", "hex": "#FF9966", "reason": "Warm pop that adds dimension" },
+          { "name": "Silver", "hex": "#C0C0C0", "reason": "Cool metallic that complements cool undertone" },
+          { "name": "Coral", "hex": "#FF6F61", "reason": "Vibrant warmth that photographs beautifully" }
+        ],
+        "avoid": [
+          { "name": "Dark Brown", "hex": "#3E2723", "reason": "Too close to skin tone, disappears" },
+          { "name": "Dark Navy", "hex": "#0A0A2A", "reason": "Not enough contrast, looks flat" },
+          { "name": "Muted Olive", "hex": "#808000", "reason": "Desaturating and dull against rich skin" }
+        ]
+      }
+    }
+  }
+}

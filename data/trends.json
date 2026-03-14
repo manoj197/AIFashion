@@ -1,0 +1,90 @@
+{
+  "meta": {
+    "version": "1.0",
+    "season": "Fall/Winter 2025 - Spring/Summer 2026",
+    "last_updated": "2025-12-01",
+    "curator": "CDO Agent"
+  },
+  "trends": [
+    {
+      "name": "Quiet Luxury 2.0",
+      "description": "The stealth wealth trend evolves — less logo-free basics, more artisanal craft and visible quality. Think hand-stitched details, unusual fabrics, and pieces that reward close inspection.",
+      "key_pieces": ["unstructured cashmere blazer", "hand-loomed scarf", "raw-edge silk top"],
+      "color_palette": ["#C19A6B", "#FAF0E6", "#3D3D3D", "#8B7B6B"],
+      "style_vibes": ["minimal", "classic"],
+      "relevance": "high"
+    },
+    {
+      "name": "Burgundy Everything",
+      "description": "The color of the season across all categories — from deep oxblood leather to bright cherry knits. The new neutral.",
+      "key_pieces": ["burgundy leather jacket", "oxblood loafers", "cherry red knit vest"],
+      "color_palette": ["#6B2D3E", "#800020", "#722F37", "#C41E3A"],
+      "style_vibes": ["classic", "creative", "minimal"],
+      "relevance": "very_high"
+    },
+    {
+      "name": "Soft Power Tailoring",
+      "description": "Oversized, unstructured, gender-fluid tailoring. Suits that look like you borrowed them from someone cooler. Deconstructed shoulders, extra-wide legs, draped lapels.",
+      "key_pieces": ["double-breasted oversized blazer", "wide-leg pleated trouser", "collarless suit jacket"],
+      "color_palette": ["#3D3D3D", "#C19A6B", "#1B2A4A", "#D2B48C"],
+      "style_vibes": ["classic", "creative", "minimal"],
+      "relevance": "high"
+    },
+    {
+      "name": "Outdoor Gorpcore Refined",
+      "description": "Trail gear meets city style — but elevated. Technical fabrics in sophisticated colors. Performance materials cut like fashion pieces.",
+      "key_pieces": ["waterproof trench coat", "merino hiking trouser", "technical vest in earth tones"],
+      "color_palette": ["#556B2F", "#4A2C2A", "#2D6A4F", "#8B7B6B"],
+      "style_vibes": ["athleisure", "minimal", "streetwear"],
+      "relevance": "medium"
+    },
+    {
+      "name": "Neo Bohemia",
+      "description": "Boho returns with a sharper edge — less festival, more artisan. Crochet, macramé, and handcraft with clean modern silhouettes.",
+      "key_pieces": ["crochet polo shirt", "hand-knit vest", "woven leather bag"],
+      "color_palette": ["#C4704E", "#FFFFF0", "#87A878", "#D4A017"],
+      "style_vibes": ["bohemian", "creative"],
+      "relevance": "medium"
+    },
+    {
+      "name": "Digital Nostalgia",
+      "description": "Y2K meets workwear — low-rise hints, cargo details, and tech-inspired materials but executed with adult sophistication.",
+      "key_pieces": ["cargo-pocket blazer", "zip-detail knit top", "utility midi skirt"],
+      "color_palette": ["#C0C0C0", "#0A0A2A", "#FF69B4", "#3D3D3D"],
+      "style_vibes": ["streetwear", "creative"],
+      "relevance": "medium"
+    },
+    {
+      "name": "Butter Yellow",
+      "description": "Soft, warm yellows replace the acid lemon of previous seasons. Think sunlight, not highlighter. Especially stunning on deep and olive skin tones.",
+      "key_pieces": ["butter knit polo", "pale yellow linen trouser", "golden silk camisole"],
+      "color_palette": ["#FFFACD", "#F4C430", "#FFD700", "#FFF8DC"],
+      "style_vibes": ["bohemian", "minimal", "classic"],
+      "relevance": "high"
+    },
+    {
+      "name": "Texture Play",
+      "description": "Mixing textures is the new color blocking — leather with knit, suede with silk, denim with cashmere. The outfit is about touch.",
+      "key_pieces": ["suede-panel knit sweater", "leather-trim wool coat", "silk-backed denim jacket"],
+      "color_palette": ["#C19A6B", "#4A2C2A", "#D2B48C", "#3D3D3D"],
+      "style_vibes": ["creative", "classic", "minimal"],
+      "relevance": "high"
+    },
+    {
+      "name": "Sheer Confidence",
+      "description": "Transparent and semi-sheer layers worn boldly — not as lingerie but as structure. Sheer knits, organza layers, mesh panels.",
+      "key_pieces": ["sheer knit polo", "organza overshirt", "mesh-panel trouser"],
+      "color_palette": ["#1B2A4A", "#FFFFFF", "#3D3D3D", "#FAF0E6"],
+      "style_vibes": ["creative", "minimal"],
+      "relevance": "medium"
+    },
+    {
+      "name": "The New Prep",
+      "description": "Ivy League codes remixed for a diverse, modern audience. Rugby stripes, cricket sweaters, and loafers — but looser, cooler, and less exclusionary.",
+      "key_pieces": ["striped rugby shirt", "cable-knit cricket vest", "penny loafer"],
+      "color_palette": ["#1B2A4A", "#228B22", "#C0392B", "#FFFFF0"],
+      "style_vibes": ["classic", "streetwear"],
+      "relevance": "high"
+    }
+  ]
+}

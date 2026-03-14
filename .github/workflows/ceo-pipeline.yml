@@ -1,0 +1,61 @@
+name: CEO Agent Pipeline
+
+# Trigger when CEO.md is pushed to main
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'CEO.md'
+
+# Prevent concurrent pipeline runs
+concurrency:
+  group: ceo-pipeline
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      # 1. Check out the repo
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+
+      # 2. Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: |
+          pip install anthropic
+
+      # 4. Run the orchestrator
+      - name: Run Agent Pipeline
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python scripts/orchestrator.py
+
+      # 5. Commit and push changes back to repo
+      - name: Commit agent outputs
+        run: |
+          git config user.name "Fashion AI Bot"
+          git config user.email "bot@fashion-ai.dev"
+          git add -A
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🤖 Agent Pipeline: $(date +%Y-%m-%d) — processed CEO directive"
+            git push
+          fi
