@@ -1,10 +1,12 @@
 """
-Fashion AI Orchestrator
-=======================
-Reads CEO.md directives, chains Claude API calls through the agent hierarchy,
-writes outputs back to repo files.
-
-Triggered by GitHub Actions when CEO.md is updated.
+Fashion AI Orchestrator v2.0
+=============================
+Major improvements over v1:
+- CTO agent makes SEPARATE calls per file (no more cramming everything into one JSON)
+- Much higher token limits (8192) for code generation
+- Robust code extraction that handles markdown code blocks, raw code, and JSON
+- Better error handling and logging
+- CDO and Creative agents also write files reliably
 """
 
 import os
@@ -17,7 +19,8 @@ import anthropic
 # ─── Config ──────────────────────────────────────────────────────────────────
 
 MODEL = "claude-sonnet-4-20250514"
-MAX_TOKENS = 4096
+MAX_TOKENS_PLANNING = 4096
+MAX_TOKENS_CODE = 8192
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -51,26 +54,15 @@ def extract_directive(ceo_md):
     return None
 
 
-def call_agent(client, agent_name, system_prompt, user_message, context_files=None):
+def call_agent(client, agent_name, system_prompt, user_message, max_tokens=MAX_TOKENS_PLANNING):
     """Call Claude API as a specific agent."""
-    context = ""
-    if context_files:
-        for filepath, content in context_files.items():
-            if content:
-                context += f"\n\n--- FILE: {filepath} ---\n{content}\n"
-
-    full_message = user_message
-    if context:
-        full_message = f"## Project Context\n{context}\n\n## Your Task\n{user_message}"
-
     print(f"\n🤖 Calling {agent_name}...")
-
     try:
         response = client.messages.create(
             model=MODEL,
-            max_tokens=MAX_TOKENS,
+            max_tokens=max_tokens,
             system=system_prompt,
-            messages=[{"role": "user", "content": full_message}]
+            messages=[{"role": "user", "content": user_message}]
         )
         result = response.content[0].text
         print(f"  ✅ {agent_name} responded ({len(result)} chars)")
@@ -81,29 +73,118 @@ def call_agent(client, agent_name, system_prompt, user_message, context_files=No
 
 
 def parse_json_from_response(response):
-    """Extract JSON from an agent response that may contain markdown."""
+    """Extract JSON from an agent response — tries multiple strategies."""
     if not response:
         return None
-    # Try to find JSON block in markdown
+
+    # Strategy 1: Find JSON in markdown code block
     json_match = re.search(r"```(?:json)?\s*\n(.*?)\n```", response, re.DOTALL)
     if json_match:
         try:
             return json.loads(json_match.group(1))
         except json.JSONDecodeError:
             pass
-    # Try parsing the whole response as JSON
+
+    # Strategy 2: Parse entire response as JSON
     try:
-        return json.loads(response)
+        return json.loads(response.strip())
     except json.JSONDecodeError:
         pass
-    # Try finding any JSON object in the response
-    json_match = re.search(r"\{.*\}", response, re.DOTALL)
-    if json_match:
+
+    # Strategy 3: Find the largest JSON object in response
+    brace_depth = 0
+    start = None
+    candidates = []
+    for i, ch in enumerate(response):
+        if ch == '{':
+            if brace_depth == 0:
+                start = i
+            brace_depth += 1
+        elif ch == '}':
+            brace_depth -= 1
+            if brace_depth == 0 and start is not None:
+                candidates.append(response[start:i+1])
+                start = None
+
+    # Try candidates from largest to smallest
+    candidates.sort(key=len, reverse=True)
+    for candidate in candidates:
         try:
-            return json.loads(json_match.group(0))
+            return json.loads(candidate)
         except json.JSONDecodeError:
-            pass
+            continue
+
     return None
+
+
+def extract_code_from_response(response):
+    """Extract code content from a response that may contain markdown code blocks."""
+    if not response:
+        return None
+
+    # Try to find code in markdown blocks
+    code_match = re.search(
+        r"```(?:jsx?|tsx?|html|css|sql|python|json|javascript|typescript)\s*\n(.*?)\n```",
+        response, re.DOTALL
+    )
+    if code_match:
+        return code_match.group(1).strip()
+
+    # Try generic code block
+    code_match = re.search(r"```\s*\n(.*?)\n```", response, re.DOTALL)
+    if code_match:
+        return code_match.group(1).strip()
+
+    # If response looks like raw code (starts with import, const, //, <, CREATE, etc.)
+    stripped = response.strip()
+    code_indicators = ['import ', 'export ', 'const ', 'function ', 'class ',
+                       '<!DOCTYPE', '<html', '<div', '<svg', '//', '/*',
+                       'CREATE ', 'ALTER ', 'INSERT ', 'SELECT ',
+                       '{', 'from ', 'def ', 'import {']
+    for indicator in code_indicators:
+        if stripped.startswith(indicator):
+            return stripped
+
+    return stripped
+
+
+def extract_file_list_from_plan(plan_response):
+    """Extract a list of files to create from the CTO planning response."""
+    parsed = parse_json_from_response(plan_response)
+    files = []
+
+    if parsed:
+        # Look for tasks with file paths
+        tasks = parsed.get("tasks", parsed.get("files", []))
+        if isinstance(tasks, list):
+            for task in tasks:
+                if isinstance(task, dict):
+                    fp = task.get("file_path", task.get("path", task.get("file", "")))
+                    desc = task.get("description", task.get("desc", task.get("purpose", "")))
+                    if fp:
+                        files.append({"file_path": fp, "description": desc})
+
+        # Also check for files_to_create
+        ftc = parsed.get("files_to_create", [])
+        if isinstance(ftc, list):
+            for item in ftc:
+                if isinstance(item, str):
+                    files.append({"file_path": item, "description": ""})
+                elif isinstance(item, dict):
+                    fp = item.get("file_path", item.get("path", ""))
+                    desc = item.get("description", "")
+                    if fp:
+                        files.append({"file_path": fp, "description": desc})
+
+    # Also try to find file paths in plain text
+    if not files:
+        path_pattern = r'(?:src|database|docs)/[\w/.-]+\.(?:jsx?|tsx?|css|html|sql|json|md)'
+        found_paths = re.findall(path_pattern, plan_response)
+        for fp in found_paths:
+            if fp not in [f["file_path"] for f in files]:
+                files.append({"file_path": fp, "description": ""})
+
+    return files
 
 
 # ─── Agent Runners ───────────────────────────────────────────────────────────
@@ -111,47 +192,48 @@ def parse_json_from_response(response):
 def run_ceo(client, directive):
     """CEO Agent: Creates execution plan from directive."""
     system_prompt = read_file("agents/AGENT.md") or "You are the CEO agent."
-    context = {
-        "agents/cpo/backlog.md": read_file("agents/cpo/backlog.md"),
-        "agents/cto/architecture.md": read_file("agents/cto/architecture.md"),
-        "agents/cdo/metrics.md": read_file("agents/cdo/metrics.md"),
-    }
+
+    context_summary = ""
+    for fpath in ["agents/cpo/backlog.md", "agents/cto/architecture.md", "agents/cdo/metrics.md"]:
+        content = read_file(fpath)
+        if content:
+            context_summary += f"\n--- {fpath} ---\n{content[:1000]}\n"
+
     task = f"""The founder has issued a new directive:
 
 \"\"\"{directive}\"\"\"
 
-Create an execution plan. Determine which agents need to be involved, in what order,
-and what each agent should deliver. Output your plan as JSON following the format
-in your AGENT.md. Also include a field "summary" with a 1-sentence interpretation
-of the directive."""
+## Current Project State:
+{context_summary}
 
-    response = call_agent(client, "CEO", system_prompt, task, context)
-    return response
+Create an execution plan. Determine which agents need to be involved, in what order,
+and what each agent should deliver. Output your plan as JSON following the format in your AGENT.md."""
+
+    return call_agent(client, "CEO", system_prompt, task)
 
 
 def run_cpo(client, directive, ceo_plan):
     """CPO Agent: Creates product specs and user stories."""
     system_prompt = read_file("agents/cpo/AGENT.md") or "You are the CPO agent."
-    context = {
-        "agents/cpo/backlog.md": read_file("agents/cpo/backlog.md"),
-        "agents/cpo/current-sprint.md": read_file("agents/cpo/current-sprint.md"),
-        "agents/cdo/metrics.md": read_file("agents/cdo/metrics.md"),
-    }
-    task = f"""The CEO has assigned you the following based on a founder directive.
 
-FOUNDER DIRECTIVE: \"\"\"{directive}\"\"\"
+    task = f"""FOUNDER DIRECTIVE: \"\"\"{directive}\"\"\"
 
-CEO PLAN: \"\"\"{ceo_plan}\"\"\"
+CEO PLAN: \"\"\"{ceo_plan[:2000]}\"\"\"
 
 Create product specifications with user stories and acceptance criteria.
-Output as JSON per your AGENT.md format.
-Also output an updated backlog in markdown format in a field called "updated_backlog_md".
-Also output an updated sprint in markdown format in a field called "updated_sprint_md"."""
 
-    response = call_agent(client, "CPO", system_prompt, task, context)
+IMPORTANT: You MUST output valid JSON with these exact fields:
+{{
+  "features": [...],
+  "updated_backlog_md": "full markdown content for backlog.md",
+  "updated_sprint_md": "full markdown content for current-sprint.md"
+}}
+
+Do NOT include any text before or after the JSON. Output ONLY the JSON object."""
+
+    response = call_agent(client, "CPO", system_prompt, task)
     parsed = parse_json_from_response(response)
 
-    # Write CPO outputs
     if parsed:
         if "updated_backlog_md" in parsed:
             write_file("agents/cpo/backlog.md", parsed["updated_backlog_md"])
@@ -164,31 +246,26 @@ Also output an updated sprint in markdown format in a field called "updated_spri
 def run_cdo(client, directive, ceo_plan, cpo_specs):
     """CDO Agent: Defines metrics, experiments, and data requirements."""
     system_prompt = read_file("agents/cdo/AGENT.md") or "You are the CDO agent."
-    context = {
-        "agents/cdo/metrics.md": read_file("agents/cdo/metrics.md"),
-        "agents/cdo/experiments.md": read_file("agents/cdo/experiments.md"),
-        "agents/cdo/models/recommendations.md": read_file("agents/cdo/models/recommendations.md"),
-        "data/brands.json": read_file("data/brands.json")[:3000],  # Truncate for context
-        "data/color-theory.json": read_file("data/color-theory.json")[:2000],
-        "data/trends.json": read_file("data/trends.json")[:2000],
-    }
-    task = f"""The CEO has a directive that needs your data expertise.
 
-FOUNDER DIRECTIVE: \"\"\"{directive}\"\"\"
+    task = f"""FOUNDER DIRECTIVE: \"\"\"{directive}\"\"\"
 
-CEO PLAN: \"\"\"{ceo_plan}\"\"\"
+CEO PLAN: \"\"\"{ceo_plan[:1500]}\"\"\"
 
-CPO SPECS: \"\"\"{cpo_specs}\"\"\"
+CPO SPECS: \"\"\"{cpo_specs[:2000]}\"\"\"
 
-Define success metrics, any experiments to run, and data/prompt changes needed.
-If the recommendation engine prompt needs updating, include the new prompt.
-If data files (brands.json, color-theory.json, trends.json) need updates, describe what to change.
-Output as JSON per your AGENT.md format.
-Also output updated metrics markdown in a field called "updated_metrics_md".
-Also output updated experiments markdown in a field called "updated_experiments_md".
-If the recommendation model doc needs updating, include it as "updated_model_md"."""
+Define success metrics, experiments, and data requirements.
 
-    response = call_agent(client, "CDO", system_prompt, task, context)
+IMPORTANT: You MUST output valid JSON with these exact fields:
+{{
+  "metrics": [...],
+  "experiments": [...],
+  "updated_metrics_md": "full markdown content for metrics.md",
+  "updated_experiments_md": "full markdown content for experiments.md"
+}}
+
+Do NOT include any text before or after the JSON."""
+
+    response = call_agent(client, "CDO", system_prompt, task)
     parsed = parse_json_from_response(response)
 
     if parsed:
@@ -202,192 +279,203 @@ If the recommendation model doc needs updating, include it as "updated_model_md"
     return response
 
 
-def run_cto(client, directive, ceo_plan, cpo_specs, cdo_data):
-    """CTO Agent: Creates engineering tasks and writes code."""
-    system_prompt = read_file("agents/cto/AGENT.md") or "You are the CTO agent."
+def run_cto_planning(client, directive, cpo_specs, cdo_data):
+    """CTO Agent Phase 1: Create a file plan — what files to create and why."""
+    system_prompt = """You are the CTO of Fashion AI. Your job right now is ONLY to create a file plan.
+List every file that needs to be created or modified, with its full path and a brief description.
+Do NOT write any code yet — just plan the files."""
 
-    # Gather existing source files for context
-    src_files = {}
+    existing_files = []
     src_dir = os.path.join(REPO_ROOT, "src")
     if os.path.exists(src_dir):
         for root, dirs, files in os.walk(src_dir):
             for f in files:
-                filepath = os.path.join(root, f)
-                rel = os.path.relpath(filepath, REPO_ROOT)
-                try:
-                    with open(filepath, "r") as fh:
-                        content = fh.read()
-                        if len(content) < 5000:  # Only include files under 5k chars
-                            src_files[rel] = content
-                except:
-                    pass
+                existing_files.append(os.path.relpath(os.path.join(root, f), REPO_ROOT))
 
-    context = {
-        "agents/cto/architecture.md": read_file("agents/cto/architecture.md"),
-        "agents/creative/brand-guide.md": read_file("agents/creative/brand-guide.md"),
-        **src_files
-    }
-    task = f"""The CEO has a directive that needs engineering work.
+    task = f"""DIRECTIVE: \"\"\"{directive}\"\"\"
 
-FOUNDER DIRECTIVE: \"\"\"{directive}\"\"\"
+CPO SPECS: \"\"\"{cpo_specs[:2000]}\"\"\"
 
-CEO PLAN: \"\"\"{ceo_plan}\"\"\"
+CDO DATA: \"\"\"{cdo_data[:1500]}\"\"\"
 
-CPO SPECS: \"\"\"{cpo_specs}\"\"\"
+EXISTING FILES: {json.dumps(existing_files)}
 
-CDO DATA REQUIREMENTS: \"\"\"{cdo_data}\"\"\"
+BRAND GUIDE: \"\"\"{(read_file('agents/creative/brand-guide.md') or '')[:1500]}\"\"\"
 
-Break this into engineering tasks. For each task that involves writing code,
-include the COMPLETE file content (no shortcuts like '// rest stays the same').
-
-IMPORTANT: Follow the brand guide in agents/creative/brand-guide.md for all UI work.
-
-Output as JSON with this structure:
+Create a file plan. Output ONLY a JSON object like this:
 {{
-  "architecture_decisions": [...],
   "tasks": [
     {{
-      "id": "FE-001",
-      "agent": "frontend",
-      "description": "...",
-      "file_path": "src/components/Example.jsx",
-      "code": "// complete file content here"
+      "file_path": "src/components/Auth.jsx",
+      "description": "Authentication component with email, Google, Apple, Phone sign-in"
+    }},
+    {{
+      "file_path": "database/migrations/001_initial_schema.sql",
+      "description": "Supabase database schema with all tables and RLS policies"
     }}
-  ],
-  "updated_architecture_md": "... updated architecture doc ...",
-  "updated_frontend_tasks_md": "... updated frontend tasks ...",
-  "updated_backend_tasks_md": "... updated backend tasks ..."
-}}"""
+  ]
+}}
 
-    response = call_agent(client, "CTO", system_prompt, task, context)
-    parsed = parse_json_from_response(response)
+List ALL files that need to be created. Include src/, database/, docs/ files.
+Output ONLY the JSON, nothing else."""
 
-    if parsed:
-        # Write task tracking files
-        if "updated_architecture_md" in parsed:
-            write_file("agents/cto/architecture.md", parsed["updated_architecture_md"])
-        if "updated_frontend_tasks_md" in parsed:
-            write_file("agents/cto/tasks/frontend.md", parsed["updated_frontend_tasks_md"])
-        if "updated_backend_tasks_md" in parsed:
-            write_file("agents/cto/tasks/backend.md", parsed["updated_backend_tasks_md"])
-
-        # Write actual code files
-        tasks = parsed.get("tasks", [])
-        for task_item in tasks:
-            if "file_path" in task_item and "code" in task_item:
-                write_file(task_item["file_path"], task_item["code"])
-
+    response = call_agent(client, "CTO (Planning)", system_prompt, task)
     return response
 
 
-def run_creative(client, directive, cto_output):
-    """Creative Director Agent: Reviews design and copy quality."""
-    system_prompt = read_file("agents/creative/AGENT.md") or "You are the Creative Director."
-    context = {
-        "agents/creative/brand-guide.md": read_file("agents/creative/brand-guide.md"),
+def run_cto_write_file(client, file_path, file_description, directive, context_summary):
+    """CTO Agent Phase 2: Write a single complete file."""
+    # Determine file type for better prompting
+    ext = os.path.splitext(file_path)[1]
+    file_type_hints = {
+        ".jsx": "React JSX component. Use functional components with hooks. Use modern ES6+ syntax.",
+        ".js": "JavaScript module. Use ES6+ modules (import/export).",
+        ".css": "CSS stylesheet. Follow the brand guide colors and typography.",
+        ".html": "HTML file. Include all necessary script tags and CDN imports.",
+        ".sql": "SQL file for Supabase/Postgres. Include CREATE TABLE, RLS policies, indexes.",
+        ".md": "Markdown documentation file.",
+        ".json": "JSON configuration file.",
     }
 
-    # Include any new UI files for review
-    src_dir = os.path.join(REPO_ROOT, "src")
-    if os.path.exists(src_dir):
-        for root, dirs, files in os.walk(src_dir):
-            for f in files:
-                if f.endswith((".jsx", ".css", ".html")):
-                    filepath = os.path.join(root, f)
-                    rel = os.path.relpath(filepath, REPO_ROOT)
-                    try:
-                        with open(filepath, "r") as fh:
-                            content = fh.read()
-                            if len(content) < 5000:
-                                context[rel] = content
-                    except:
-                        pass
+    system_prompt = f"""You are a senior full-stack engineer. Your ONLY job is to write the COMPLETE contents of one file: {file_path}
 
-    task = f"""Review the latest changes for brand compliance and design quality.
+Rules:
+- Output ONLY the file contents — no explanations, no markdown code fences, no commentary
+- Write the COMPLETE file — no placeholders like "// add more here" or "// rest stays the same"
+- The first character of your response should be the first character of the file
+- The last character of your response should be the last character of the file
+- {file_type_hints.get(ext, "Write complete, production-ready code.")}"""
 
-DIRECTIVE CONTEXT: \"\"\"{directive}\"\"\"
+    brand_guide = read_file("agents/creative/brand-guide.md") or ""
+    color_theory = read_file("data/color-theory.json") or ""
+    brands_data = read_file("data/brands.json") or ""
 
-CTO OUTPUT: \"\"\"{cto_output[:3000]}\"\"\"
+    # Build context based on file type
+    extra_context = ""
+    if ext in [".jsx", ".css", ".html"]:
+        extra_context = f"\nBRAND GUIDE:\n{brand_guide[:2000]}"
+    if ext == ".sql":
+        extra_context = "\nUse uuid_generate_v4() for IDs. Add Row Level Security. Use timestamptz for dates."
+    if "recommendation" in file_path.lower() or "api" in file_path.lower():
+        extra_context += f"\nBRANDS DATA (sample):\n{brands_data[:2000]}"
+        extra_context += f"\nCOLOR THEORY (sample):\n{color_theory[:2000]}"
 
-Review all UI code and copy for:
+    task = f"""Write the complete file: {file_path}
+Description: {file_description}
+
+PROJECT CONTEXT:
+{directive[:1000]}
+
+{context_summary[:1500]}
+{extra_context}
+
+Remember: Output ONLY the raw file contents. No markdown fences. No explanations. Start with the first line of code."""
+
+    response = call_agent(client, f"CTO (Writing {file_path})", system_prompt, task, max_tokens=MAX_TOKENS_CODE)
+
+    if response:
+        # Clean up response — remove any accidental markdown fences
+        code = extract_code_from_response(response)
+        if code:
+            write_file(file_path, code)
+            return True
+
+    return False
+
+
+def run_creative(client, directive, written_files):
+    """Creative Director Agent: Reviews design and writes brand-compliant updates."""
+    system_prompt = read_file("agents/creative/AGENT.md") or "You are the Creative Director."
+
+    # Read a few key UI files for review
+    ui_previews = ""
+    ui_files = [f for f in written_files if f.endswith((".jsx", ".css", ".html"))]
+    for fp in ui_files[:3]:
+        content = read_file(fp)
+        if content:
+            ui_previews += f"\n--- {fp} (first 2000 chars) ---\n{content[:2000]}\n"
+
+    task = f"""Review the latest UI code for brand compliance and design quality.
+
+DIRECTIVE: \"\"\"{directive[:500]}\"\"\"
+
+BRAND GUIDE: \"\"\"{(read_file('agents/creative/brand-guide.md') or '')[:2000]}\"\"\"
+
+FILES TO REVIEW:
+{ui_previews if ui_previews else "(No UI files written yet)"}
+
+Review for:
 1. Brand guide compliance (colors, typography, spacing, tone)
 2. Design quality (no generic AI aesthetics)
 3. Copy quality (warm, personal, aspirational — never robotic)
 
-If anything needs fixing, provide the corrected code.
-Output as JSON per your AGENT.md format.
-If brand guide needs updating, include "updated_brand_guide_md"."""
+Output JSON with:
+{{
+  "review_status": "approved|needs_changes",
+  "feedback": [...],
+  "updated_brand_guide_md": "updated brand guide if needed (or null)"
+}}"""
 
-    response = call_agent(client, "Creative Director", system_prompt, task, context)
+    response = call_agent(client, "Creative Director", system_prompt, task)
     parsed = parse_json_from_response(response)
 
     if parsed:
-        if "updated_brand_guide_md" in parsed:
+        if parsed.get("updated_brand_guide_md"):
             write_file("agents/creative/brand-guide.md", parsed["updated_brand_guide_md"])
-        # Apply any code fixes from creative review
-        if "code_fixes" in parsed:
-            for fix in parsed["code_fixes"]:
-                if "file_path" in fix and "code" in fix:
-                    write_file(fix["file_path"], fix["code"])
 
     return response
 
 
-def run_qa(client, directive, all_outputs):
+def run_qa(client, directive, written_files, all_outputs):
     """QA Agent: Final review gate."""
     system_prompt = read_file("agents/qa/AGENT.md") or "You are the QA agent."
-    context = {
-        "agents/qa/test-cases.md": read_file("agents/qa/test-cases.md"),
-        "agents/creative/brand-guide.md": read_file("agents/creative/brand-guide.md"),
-    }
 
-    # Include current source for review
-    src_dir = os.path.join(REPO_ROOT, "src")
-    if os.path.exists(src_dir):
-        for root, dirs, files in os.walk(src_dir):
-            for f in files:
-                filepath = os.path.join(root, f)
-                rel = os.path.relpath(filepath, REPO_ROOT)
-                try:
-                    with open(filepath, "r") as fh:
-                        content = fh.read()
-                        if len(content) < 5000:
-                            context[rel] = content
-                except:
-                    pass
+    # Read written files for review
+    file_previews = ""
+    for fp in written_files[:5]:
+        content = read_file(fp)
+        if content:
+            file_previews += f"\n--- {fp} (first 1500 chars) ---\n{content[:1500]}\n"
 
     task = f"""Review ALL changes from this pipeline run.
 
-DIRECTIVE: \"\"\"{directive}\"\"\"
+DIRECTIVE: \"\"\"{directive[:500]}\"\"\"
 
-AGENT OUTPUTS SUMMARY:
-{all_outputs[:4000]}
+FILES CREATED: {json.dumps(written_files)}
 
-Run through your QA checklist. Check code quality, UI quality, recommendation quality, and data quality.
-Output as JSON per your AGENT.md format.
-Also include "updated_release_log_md" with the updated release log.
-Also include "updated_test_cases_md" if new test cases are needed."""
+FILE CONTENTS (previews):
+{file_previews}
 
-    response = call_agent(client, "QA", system_prompt, task, context)
+Run through your QA checklist. Output JSON with:
+{{
+  "review_status": "pass|fail|pass_with_notes",
+  "ship_decision": "ship|no_ship|ship_with_followup",
+  "blockers": [...],
+  "notes": [...],
+  "updated_release_log_md": "full markdown for release-log.md",
+  "updated_test_cases_md": "full markdown for test-cases.md"
+}}"""
+
+    response = call_agent(client, "QA", system_prompt, task)
     parsed = parse_json_from_response(response)
 
     if parsed:
-        if "updated_release_log_md" in parsed:
+        if parsed.get("updated_release_log_md"):
             write_file("agents/qa/release-log.md", parsed["updated_release_log_md"])
-        if "updated_test_cases_md" in parsed:
+        if parsed.get("updated_test_cases_md"):
             write_file("agents/qa/test-cases.md", parsed["updated_test_cases_md"])
 
     return response
 
 
-def update_ceo_status(directive, ceo_plan, qa_result):
+def update_ceo_status(directive, written_files, qa_result):
     """Update CEO.md with status report."""
     ceo_md = read_file("CEO.md")
     today = datetime.date.today().isoformat()
 
-    # Parse QA result for status
     qa_parsed = parse_json_from_response(qa_result) if qa_result else None
     status = "✅"
+    ship = "unknown"
     if qa_parsed:
         ship = qa_parsed.get("ship_decision", "unknown")
         if ship == "no_ship":
@@ -395,48 +483,32 @@ def update_ceo_status(directive, ceo_plan, qa_result):
         elif ship == "ship_with_followup":
             status = "⚠️"
 
-    # Extract summary from CEO plan
-    ceo_parsed = parse_json_from_response(ceo_plan) if ceo_plan else None
-    summary = "Directive processed"
-    if ceo_parsed and "directive_summary" in ceo_parsed:
-        summary = ceo_parsed["directive_summary"]
+    run_count = len(re.findall(r"### Run \d+", ceo_md)) + 1
+    files_list = "\n".join([f"  - `{f}`" for f in written_files]) if written_files else "  - No files written"
 
-    # Count existing runs
-    run_count = ceo_md.count("| ") - 2  # subtract header rows
-    run_num = max(run_count, 1)
-
-    # Add status row to table
-    new_row = f"| {run_num} | {today} | {summary} | {status} |"
-    ceo_md = ceo_md.replace(
-        "| — | — | Awaiting first run | ⏳ |",
-        new_row
-    )
-
-    # Also append to existing table if first run marker is gone
-    if "Awaiting first run" not in ceo_md and new_row not in ceo_md:
-        table_end = ceo_md.rfind("|")
-        if table_end > 0:
-            # Find end of the table row
-            next_newline = ceo_md.find("\n", table_end)
-            if next_newline > 0:
-                ceo_md = ceo_md[:next_newline] + "\n" + new_row + ceo_md[next_newline:]
-
-    # Add detailed report
     report = f"""
+### Run {run_count} — {today}
+**Status**: {status} ({ship})
+**Files Created/Updated**:
+{files_list}
 
-### Run {run_num} — {today}
-**Directive**: {summary}
-**Status**: {status}
-
-**QA Summary**: {qa_result[:500] if qa_result else 'No QA report generated'}
+**QA Summary**: {qa_result[:400] if qa_result else 'No QA report generated'}
 
 ---
 """
+
+    # Replace the awaiting first run placeholder or add to reports section
+    if "Awaiting first run" in ceo_md:
+        ceo_md = ceo_md.replace(
+            "| — | — | Awaiting first run | ⏳ |",
+            f"| {run_count} | {today} | Pipeline run | {status} |"
+        )
+
     # Insert report before "## 📝 How To Use"
-    ceo_md = ceo_md.replace(
-        "## 📝 How To Use",
-        report + "\n## 📝 How To Use"
-    )
+    if "## 📝 How To Use" in ceo_md:
+        ceo_md = ceo_md.replace("## 📝 How To Use", report + "\n## 📝 How To Use")
+    else:
+        ceo_md += report
 
     write_file("CEO.md", ceo_md)
 
@@ -445,10 +517,9 @@ def update_ceo_status(directive, ceo_plan, qa_result):
 
 def main():
     print("=" * 60)
-    print("🏢 Fashion AI — Agent Pipeline Starting")
+    print("🏢 Fashion AI — Agent Pipeline v2.0")
     print("=" * 60)
 
-    # Check for API key
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         print("❌ ANTHROPIC_API_KEY not set. Exiting.")
@@ -467,51 +538,83 @@ def main():
         print("ℹ️  No new directive found in CEO.md. Nothing to do.")
         sys.exit(0)
 
-    print(f"\n📋 Directive found:\n{directive[:200]}...")
+    print(f"\n📋 Directive found ({len(directive)} chars)")
+    all_outputs = ""
+    written_files = []
 
     # Step 2: CEO creates plan
     ceo_plan = run_ceo(client, directive)
     if not ceo_plan:
-        print("❌ CEO agent failed. Aborting pipeline.")
+        print("❌ CEO agent failed. Aborting.")
         sys.exit(1)
-
-    all_outputs = f"CEO PLAN:\n{ceo_plan}\n\n"
+    all_outputs += f"CEO: {ceo_plan[:1000]}\n"
 
     # Step 3: CPO creates specs
     cpo_specs = run_cpo(client, directive, ceo_plan)
-    all_outputs += f"CPO SPECS:\n{cpo_specs}\n\n"
+    all_outputs += f"CPO: {cpo_specs[:1000]}\n"
 
     # Step 4: CDO defines data requirements
     cdo_data = run_cdo(client, directive, ceo_plan, cpo_specs)
-    all_outputs += f"CDO DATA:\n{cdo_data}\n\n"
+    all_outputs += f"CDO: {cdo_data[:1000]}\n"
 
-    # Step 5: CTO creates engineering tasks and writes code
-    cto_output = run_cto(client, directive, ceo_plan, cpo_specs, cdo_data)
-    all_outputs += f"CTO OUTPUT:\n{cto_output}\n\n"
+    # Step 5: CTO PLANNING — determine what files to create
+    print("\n" + "─" * 40)
+    print("📐 CTO Planning Phase")
+    print("─" * 40)
+    cto_plan = run_cto_planning(client, directive, cpo_specs, cdo_data)
+    file_list = extract_file_list_from_plan(cto_plan)
 
-    # Step 6: Creative Director reviews
-    creative_review = run_creative(client, directive, cto_output)
-    all_outputs += f"CREATIVE REVIEW:\n{creative_review}\n\n"
+    if not file_list:
+        print("  ⚠️  CTO plan didn't produce a clear file list. Trying to extract from directive...")
+        # Fallback: extract file paths mentioned in the directive
+        path_pattern = r'(?:src|database|docs)/[\w/.-]+\.(?:jsx?|tsx?|css|html|sql|json|md)'
+        found_paths = re.findall(path_pattern, directive)
+        file_list = [{"file_path": fp, "description": ""} for fp in found_paths]
 
-    # Step 7: QA reviews everything
-    qa_result = run_qa(client, directive, all_outputs)
-    all_outputs += f"QA RESULT:\n{qa_result}\n\n"
+    print(f"\n📁 Files to create: {len(file_list)}")
+    for f in file_list:
+        print(f"  → {f['file_path']}")
 
-    # Step 8: Update CEO.md with status report
-    update_ceo_status(directive, ceo_plan, qa_result)
+    # Step 6: CTO WRITING — write each file separately
+    print("\n" + "─" * 40)
+    print("💻 CTO Code Writing Phase")
+    print("─" * 40)
 
-    # Step 9: Write full pipeline log
+    context_summary = f"CPO: {cpo_specs[:800]}\nCDO: {cdo_data[:800]}"
+
+    for file_info in file_list:
+        fp = file_info["file_path"]
+        desc = file_info.get("description", "")
+        success = run_cto_write_file(client, fp, desc, directive, context_summary)
+        if success:
+            written_files.append(fp)
+        else:
+            print(f"  ⚠️  Failed to write: {fp}")
+
+    print(f"\n📊 Successfully wrote {len(written_files)}/{len(file_list)} files")
+
+    # Step 7: Creative Director reviews
+    creative_review = run_creative(client, directive, written_files)
+    all_outputs += f"Creative: {creative_review[:500]}\n"
+
+    # Step 8: QA reviews everything
+    qa_result = run_qa(client, directive, written_files, all_outputs)
+
+    # Step 9: Update CEO.md
+    update_ceo_status(directive, written_files, qa_result)
+
+    # Step 10: Write logs
     today = datetime.date.today().isoformat()
     changelog = read_file("docs/changelog.md") or "# Changelog\n"
-    changelog += f"\n## {today}\n**Directive**: {directive[:100]}...\n**Pipeline**: Complete\n"
+    changelog += f"\n## {today}\n**Directive**: {directive[:200]}...\n**Files**: {json.dumps(written_files)}\n"
     write_file("docs/changelog.md", changelog)
 
     decisions_log = read_file("docs/decisions-log.md") or "# Decisions Log\n"
-    decisions_log += f"\n## {today}\n{all_outputs[:2000]}\n"
+    decisions_log += f"\n## {today}\n**Plan**: {cto_plan[:1000]}\n**Written**: {json.dumps(written_files)}\n"
     write_file("docs/decisions-log.md", decisions_log)
 
     print("\n" + "=" * 60)
-    print("✅ Pipeline complete! Check CEO.md for status report.")
+    print(f"✅ Pipeline complete! Wrote {len(written_files)} files.")
     print("=" * 60)
 
 
