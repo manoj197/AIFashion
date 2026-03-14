@@ -1,69 +1,66 @@
 # 🧪 Test Cases
 
-## ⚠️ IMPLEMENTATION PENDING
-**Status**: These test cases are ready but cannot be executed until code is implemented.
+## ⚠️ IMPLEMENTATION STILL PENDING
+**Status**: Planning complete but implementation required for testing
 
-## TC-001: Style Quiz Flow
-- **Precondition**: User lands on app
-- **Steps**: Complete all 5 quiz steps (gender → skin tone → style → occasion → budget)
-- **Expected**: Each step allows selection, back/forward navigation works, progress indicator updates
-- **Edge Cases**: What if user skips a step? What if they go back and change an answer?
-- **Status**: 🔴 BLOCKED - No quiz components built
+## NEW - TC-009: User Registration Flow
+- **Precondition**: Supabase auth is configured
+- **Steps**: 
+  1. Navigate to signup page
+  2. Enter valid email/password
+  3. Verify email confirmation sent
+  4. Complete email verification
+  5. Redirect to dashboard
+- **Expected**: User account created in <30s, authenticated session established
+- **Edge Cases**: Invalid email, weak password, email already exists, network timeout
+- **Status**: 🔴 BLOCKED - No auth components exist
 
-## TC-002: Skin Tone Color Matching
-- **Precondition**: User selects a skin tone
-- **Steps**: Select each of the 6 skin tones
-- **Expected**: "Best colors" preview shows colors appropriate for that undertone
-- **Validation**: Cross-reference with `data/color-theory.json`
-- **Status**: 🔴 BLOCKED - No color-theory.json file exists
+## NEW - TC-010: Login Flow
+- **Precondition**: User has existing account
+- **Steps**:
+  1. Navigate to login page
+  2. Enter credentials
+  3. Submit form
+- **Expected**: Authenticated and redirected to dashboard in <3s
+- **Edge Cases**: Wrong password, unverified email, expired session
+- **Status**: 🔴 BLOCKED - No login components exist
 
-## TC-003: AI Recommendation Generation
-- **Precondition**: User completes quiz
-- **Steps**: Submit quiz and wait for recommendations
-- **Expected**: 3 complete outfits returned, each with 4 pieces, all from hidden gem brands
-- **Edge Cases**: API timeout, malformed response, empty response
-- **Status**: 🔴 BLOCKED - No Claude API integration
+## NEW - TC-011: Session Persistence
+- **Precondition**: User is logged in
+- **Steps**:
+  1. Close browser
+  2. Reopen application
+- **Expected**: User remains logged in, dashboard loads automatically
+- **Status**: 🔴 BLOCKED - No session management implemented
 
-## TC-004: Budget Compliance
-- **Precondition**: User selects a budget range
-- **Steps**: Complete quiz with each budget option
-- **Expected**: All recommended item prices fall within the selected range
-- **Validation**: Parse prices from response and compare to budget bounds
-- **Status**: 🔴 BLOCKED - No recommendation system built
+## NEW - TC-012: Password Reset Flow
+- **Precondition**: User has existing account but forgot password
+- **Steps**:
+  1. Click 'Forgot Password'
+  2. Enter email
+  3. Check email for reset link
+  4. Click reset link
+  5. Set new password
+- **Expected**: Password successfully reset, can log in with new credentials
+- **Status**: 🔴 BLOCKED - No password reset implemented
 
-## TC-005: Mobile Responsiveness
-- **Precondition**: Load app on 375px viewport
-- **Steps**: Navigate through entire flow
-- **Expected**: No horizontal scroll, all buttons tappable, text readable
-- **Status**: 🔴 BLOCKED - No UI components built
+## NEW - TC-013: Database Integration
+- **Precondition**: User completes style quiz while authenticated
+- **Steps**: Submit quiz responses
+- **Expected**: Responses saved to user profile in Supabase, persist across sessions
+- **Validation**: Query database directly to verify data storage
+- **Status**: 🔴 BLOCKED - No database integration built
 
-## TC-006: Brand Exclusion
-- **Precondition**: None
-- **Steps**: Run recommendations 10 times with varied inputs
-- **Expected**: ZERO mainstream brands (Nike, Adidas, Zara, H&M, Gucci, Louis Vuitton, etc.)
-- **Validation**: Check against mainstream brand blocklist
-- **Status**: 🔴 BLOCKED - No brand database exists
+## NEW - TC-014: Supabase Performance
+- **Precondition**: Application is live with Supabase connection
+- **Steps**: Measure page load times with database queries
+- **Expected**: All page loads <3s as specified in acceptance criteria
+- **Status**: 🔴 BLOCKED - No Supabase integration to test
 
-## TC-007: Error Handling (NEW)
-- **Precondition**: App is running
-- **Steps**: Disconnect internet, try to submit quiz
-- **Expected**: Graceful error message, retry option
-- **Status**: 🔴 BLOCKED - No error handling implemented
-
-## TC-008: Loading States (NEW)
-- **Precondition**: App is running
-- **Steps**: Submit quiz and observe loading behavior
-- **Expected**: Elegant loading animation, no blank screens
-- **Status**: 🔴 BLOCKED - No loading states implemented
+## EXISTING TEST CASES
+[All previous test cases TC-001 through TC-008 remain BLOCKED - no implementation]
 
 ---
 
-## 🔄 Post-Implementation Checklist
-Once code is built, verify:
-- [ ] All components render without crashing
-- [ ] Quiz state management works correctly
-- [ ] API calls handle success/error/loading states
-- [ ] Brand database is populated with underdog brands only
-- [ ] Color theory mappings are scientifically accurate
-- [ ] Mobile responsiveness across device sizes
-- [ ] Design matches brand guide specifications
+## 🔄 Implementation Required Before Testing
+**CRITICAL**: All test cases remain blocked until actual code is built. Planning phase is complete but executable artifacts needed for QA validation.
