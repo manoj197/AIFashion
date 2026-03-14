@@ -7,6 +7,7 @@
 
 ## 📋 New Directive
 
+
 Build the initial Fashion AI application — an AI-powered style recommendation app that:
 1. Asks users a style quiz (gender, skin tone, style vibe, occasion, budget)
 2. Matches colors to their skin tone using color theory
