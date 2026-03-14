@@ -88,6 +88,7 @@ Note: Google, Apple, and Phone auth require configuration in the Supabase dashbo
 
 #### 3. FRONTEND STRUCTURE
 
+
 Create a proper React app (using Vite) with these files:
 
 - `src/index.html` — Entry point
