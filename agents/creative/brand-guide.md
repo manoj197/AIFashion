@@ -1,5 +1,27 @@
 # 🖌️ Brand Guide
 
+## Brand Voice Guidelines
+
+### Brand Storytelling
+- Every brand story must be exactly 2 sentences
+- First sentence: Hook with emotional/sensory detail
+- Second sentence: Credibility/craft detail
+- Always include origin/founder story when possible
+- Focus on the *feeling* of wearing the brand, not just features
+
+### Forbidden Words
+- "High-quality" (show, don't tell)
+- "Premium" (overused)
+- "Luxury" (let the story convey it)
+- "Sustainable" (say "deadstock" or "organic cotton" instead)
+- "Brand" (say "studio", "atelier", "house")
+
+### Copy Hierarchy
+1. **Brand Stories**: Evocative, editorial, 2 sentences max
+2. **Outfit Names**: Poetic but specific: "The Sunday Editor", "Off-Duty Creative"
+3. **Item Descriptions**: Sensory details: "butter-soft cashmere", "crisp poplin"
+4. **Recommendations**: Personal: "This is going to transform your mornings"
+
 ## Colors
 
 ### Primary Palette
@@ -54,3 +76,28 @@
 - **Transitions**: 0.3s ease for interactions, 0.5s cubic-bezier(0.4,0,0.2,1) for layout changes
 - **Page transitions**: Fade + slight translateY (12px)
 - **Loading states**: Subtle pulse animation, never aggressive spinners
+
+## Hidden Gem Brand Criteria
+- Founded within last 15 years OR rediscovered vintage brands
+- Production under 10,000 units annually
+- Featured in niche publications (Monocle, The Gentlewoman, Fantastic Man)
+- NOT sold in major department stores (Nordstrom, Saks, etc.)
+- Strong origin story tied to place/craft/founder journey
+- Price point $50-800 (accessible luxury)
+
+## Brand Data Requirements
+```json
+{
+  "id": "string",
+  "name": "string",
+  "story": "2 sentences max, editorial tone",
+  "origin": "City/region where founded",
+  "founded": "Year",
+  "price_range": [min, max],
+  "signature_pieces": ["array of hero items"],
+  "materials_focus": "What they're known for",
+  "fit_notes": "How their clothes fit/feel",
+  "categories": ["tops", "bottoms", "outerwear", "dresses", "accessories"],
+  "style_vibes": ["minimalist", "maximalist", "classic", "avant-garde", "bohemian", "sophisticated"]
+}
+```
